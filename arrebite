@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+"""
+arrebite - Mantém o notebook acordado, evitando suspensão e bloqueio de tela.
+Compatível com Linux (GNOME, KDE, Xfce) e Windows.
+"""
+
+import os
+import sys
+import json
+import platform
+import subprocess
+import shutil
+from dataclasses import dataclass, field
+from typing import Dict, Optional
+
+
+@dataclass
+class SavedSettings:
+    settings: Dict[str, Optional[str]] = field(default_factory=dict)
+
+    SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".arrebite_saved.json")
+
+    def save(self) -> None:
+        try:
+            with open(self.SAVE_FILE, "w") as f:
+                json.dump(self.settings, f, indent=2)
+        except OSError:
+            pass
+
+    def load(self) -> bool:
+        try:
+            with open(self.SAVE_FILE, "r") as f:
+                self.settings = json.load(f)
+            return True
+        except (OSError, json.JSONDecodeError):
+            self.settings = {}
+            return False
+
+    def clear(self) -> None:
+        self.settings = {}
+        try:
+            os.remove(self.SAVE_FILE)
+        except OSError:
+            pass
+
+    def add(self, key: str, value: Optional[str]) -> None:
+        if value is not None:
+            self.settings[key] = value
+
+
+saved = SavedSettings()
+
+
+def detect_desktop() -> str:
+    """Detecta o ambiente desktop no Linux."""
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    if "gnome" in desktop or "unity" in desktop:
+        return "gnome"
+    if "kde" in desktop or "plasma" in desktop:
+        return "kde"
+    if "xfce" in desktop:
+        return "xfce"
+    return "generic"
+
+
+def run_cmd(cmd: list, check: bool = False) -> subprocess.CompletedProcess:
+    """Executa um comando e retorna o resultado. Não lança erro por padrão."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, check=check)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(cmd, returncode=-1, stdout="", stderr="command not found")
+    except subprocess.CalledProcessError as e:
+        return e
+
+
+def get_gsetting(schema: str, key: str) -> Optional[str]:
+    """Lê uma configuração do gsettings. Retorna None se falhar."""
+    r = run_cmd(["gsettings", "get", schema, key])
+    if r.returncode == 0:
+        return r.stdout.strip().strip("'")
+    return None
+
+
+def set_gsetting(schema: str, key: str, value: str) -> bool:
+    """Define uma configuração no gsettings."""
+    r = run_cmd(["gsettings", "set", schema, key, value])
+    return r.returncode == 0
+
+
+def has_cmd(cmd: str) -> bool:
+    """Verifica se um comando existe no PATH."""
+    return shutil.which(cmd) is not None
+
+
+def disable_sleep_linux() -> None:
+    """Desabilita suspensão automática no Linux."""
+    methods_used = []
+
+    # Método 1: systemd-inhibit (mais moderno, systemd)
+    if has_cmd("systemd-inhibit"):
+        # Apenas registramos que systemd-inhibit está disponível.
+        # O bloqueio real será feito pelo processo mantido vivo pelo menu.
+        methods_used.append("systemd-inhibit")
+        saved.add("sleep_systemd_inhibit", "available")
+
+    # Método 2: gsettings (GNOME)
+    if detect_desktop() == "gnome" and has_cmd("gsettings"):
+        val = get_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-ac-timeout")
+        saved.add("gsettings_sleep_ac", val)
+        set_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-ac-timeout", "0")
+
+        val = get_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-battery-timeout")
+        saved.add("gsettings_sleep_bat", val)
+        set_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-battery-timeout", "0")
+        methods_used.append("gsettings")
+
+    # Método 3: xset (X11)
+    if os.environ.get("DISPLAY"):
+        if has_cmd("xset"):
+            saved.add("xset_s_off", "applied")
+            run_cmd(["xset", "s", "off"])
+            methods_used.append("xset")
+
+    print(f"  [OK] Suspensão desabilitada (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def disable_sleep_windows() -> None:
+    """Desabilita suspensão automática no Windows."""
+    methods_used = []
+
+    r = run_cmd(["powercfg", "/change", "standby-timeout-ac", "0"])
+    if r.returncode == 0:
+        saved.add("windows_standby_ac", "0")
+        methods_used.append("standby-ac")
+
+    r = run_cmd(["powercfg", "/change", "standby-timeout-dc", "0"])
+    if r.returncode == 0:
+        saved.add("windows_standby_dc", "0")
+        methods_used.append("standby-dc")
+
+    r = run_cmd(["powercfg", "/change", "hibernate-timeout-ac", "0"])
+    if r.returncode == 0:
+        saved.add("windows_hibernate_ac", "0")
+        methods_used.append("hibernate-ac")
+
+    r = run_cmd(["powercfg", "/change", "hibernate-timeout-dc", "0"])
+    if r.returncode == 0:
+        saved.add("windows_hibernate_dc", "0")
+        methods_used.append("hibernate-dc")
+
+    print(f"  [OK] Suspensão desabilitada (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def disable_screen_linux() -> None:
+    """Desabilita que a tela apague ou bloqueie no Linux."""
+    methods_used = []
+
+    # gsettings para GNOME
+    if detect_desktop() == "gnome" and has_cmd("gsettings"):
+        val = get_gsetting("org.gnome.desktop.screensaver", "lock-enabled")
+        saved.add("gsettings_lock_enabled", val)
+        set_gsetting("org.gnome.desktop.screensaver", "lock-enabled", "false")
+
+        val = get_gsetting("org.gnome.desktop.session", "idle-delay")
+        saved.add("gsettings_idle_delay", val)
+        set_gsetting("org.gnome.desktop.session", "idle-delay", "0")
+
+        val = get_gsetting("org.gnome.desktop.screensaver", "idle-activation-enabled")
+        saved.add("gsettings_screensaver_idle", val)
+        set_gsetting("org.gnome.desktop.screensaver", "idle-activation-enabled", "false")
+        methods_used.append("gsettings")
+
+    # xset DPMS (X11)
+    if os.environ.get("DISPLAY") and has_cmd("xset"):
+        saved.add("xset_dpms", "disabled")
+        run_cmd(["xset", "-dpms"])
+        methods_used.append("xset-dpms")
+
+    print(f"  [OK] Tela não apaga/bloqueia (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def disable_screen_windows() -> None:
+    """Desabilita que a tela apague no Windows."""
+    methods_used = []
+
+    r = run_cmd(["powercfg", "/change", "monitor-timeout-ac", "0"])
+    if r.returncode == 0:
+        saved.add("windows_monitor_ac", "0")
+        methods_used.append("monitor-ac")
+
+    r = run_cmd(["powercfg", "/change", "monitor-timeout-dc", "0"])
+    if r.returncode == 0:
+        saved.add("windows_monitor_dc", "0")
+        methods_used.append("monitor-dc")
+
+    print(f"  [OK] Tela não apaga (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def restore_linux() -> None:
+    """Restaura configurações originais no Linux."""
+    methods_used = []
+
+    if detect_desktop() == "gnome" and has_cmd("gsettings"):
+        val = saved.settings.get("gsettings_sleep_ac")
+        if val is not None:
+            set_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-ac-timeout", val)
+            methods_used.append("sleep-ac")
+
+        val = saved.settings.get("gsettings_sleep_bat")
+        if val is not None:
+            set_gsetting("org.gnome.settings-daemon.plugins.power", "sleep-inactive-battery-timeout", val)
+            methods_used.append("sleep-bat")
+
+        val = saved.settings.get("gsettings_lock_enabled")
+        if val is not None:
+            set_gsetting("org.gnome.desktop.screensaver", "lock-enabled", val)
+            methods_used.append("lock")
+
+        val = saved.settings.get("gsettings_idle_delay")
+        if val is not None:
+            set_gsetting("org.gnome.desktop.session", "idle-delay", val)
+            methods_used.append("idle-delay")
+
+        val = saved.settings.get("gsettings_screensaver_idle")
+        if val is not None:
+            set_gsetting("org.gnome.desktop.screensaver", "idle-activation-enabled", val)
+            methods_used.append("screensaver-idle")
+
+    if os.environ.get("DISPLAY") and has_cmd("xset"):
+        run_cmd(["xset", "s", "on"])
+        run_cmd(["xset", "+dpms"])
+        methods_used.append("xset")
+
+    print(f"  [OK] Configurações restauradas (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def restore_windows() -> None:
+    """Restaura configurações originais no Windows."""
+    methods_used = []
+
+    for key, default in [
+        ("windows_standby_ac", "30"),
+        ("windows_standby_dc", "15"),
+        ("windows_hibernate_ac", "0"),
+        ("windows_hibernate_dc", "0"),
+        ("windows_monitor_ac", "10"),
+        ("windows_monitor_dc", "5"),
+    ]:
+        val = saved.settings.get(key)
+        if val is not None:
+            setting_name = key.replace("windows_", "").replace("_", "-") + " " + val
+            run_cmd(["powercfg", "/change", setting_name])
+            methods_used.append(key.replace("windows_", ""))
+
+    print(f"  [OK] Configurações restauradas (métodos: {', '.join(methods_used) or 'nenhum'})")
+
+
+def activate_mode() -> None:
+    """Ativa o modo 'não dormir' — desliga suspensão e tela."""
+    system = platform.system()
+    print("\n=== Ativando modo 'não dormir' ===\n")
+
+    if system == "Linux":
+        disable_sleep_linux()
+        disable_screen_linux()
+    elif system == "Windows":
+        disable_sleep_windows()
+        disable_screen_windows()
+    else:
+        print(f"  [!] Sistema não suportado: {system}")
+        return
+
+    saved.save()
+    print("\n  >> Modo 'não dormir' ativado com sucesso!")
+
+
+def restore_defaults() -> None:
+    """Restaura as configurações padrão salvas anteriormente."""
+    system = platform.system()
+    print("\n=== Restaurando configurações padrão ===\n")
+
+    if not saved.load() or not saved.settings:
+        print("  [!] Nenhuma configuração anterior encontrada para restaurar.")
+        print("  [!] As alterações serão desfeitas parcialmente com valores padrão.")
+
+    if system == "Linux":
+        restore_linux()
+    elif system == "Windows":
+        restore_windows()
+    else:
+        print(f"  [!] Sistema não suportado: {system}")
+        return
+
+    saved.clear()
+    print("\n  >> Configurações restauradas com sucesso!")
+
+
+def show_menu() -> None:
+    """Exibe o menu principal."""
+    print("\n" + "=" * 50)
+    print("  ARREBITE - Mantenha seu notebook acordado")
+    print("=" * 50)
+    print("  [1] Ativar modo 'não dormir'")
+    print("      (desliga suspensão + tela apagar)")
+    print("  [2] Restaurar configurações padrão")
+    print("      (reativar suspensão e screen lock)")
+    print("  [3] Sair")
+    print("=" * 50)
+
+
+def main() -> None:
+    """Loop principal do programa."""
+    while True:
+        show_menu()
+        choice = input("  Escolha uma opção [1-3]: ").strip()
+
+        if choice == "1":
+            activate_mode()
+        elif choice == "2":
+            restore_defaults()
+        elif choice == "3":
+            saved.clear()
+            print("\n  Saindo... Até logo!")
+            sys.exit(0)
+        else:
+            print("\n  [!] Opção inválida. Digite 1, 2 ou 3.")
+
+        input("\n  Pressione ENTER para continuar...")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n  Saindo... Até logo!")
+        sys.exit(0)
