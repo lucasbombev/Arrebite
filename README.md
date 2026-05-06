@@ -2,15 +2,15 @@
 Pequeno programa que impede o notebook de suspender ou desligar a tela automaticamente. Com interface gráfica simples e menu para terminal. Ideal para apresentações, downloads longos ou monitoramento noturno.
 
 ---
+<img width="517" height="425" alt="image" src="https://github.com/user-attachments/assets/09d36401-28cf-4c4b-ba0c-a91479fc1a5d" />
+
+---
 
 ```markdown
 # ⚡ Arrebite – Mantenha seu notebook sempre acordado
 
 Pequeno utilitário para **impedir que o notebook entre em suspensão automática** ou que a **tela se apague/bloqueie** sozinha.  
 Perfeito para apresentações, downloads longos, monitoramento noturno ou qualquer situação em que você precisa que o computador permaneça ativo.
-
-![Arrebite GUI - exemplo](![IlustracaoArrebite](image.png))  
-*(imagem ilustrativa – a interface real pode variar)*
 
 ---
 
