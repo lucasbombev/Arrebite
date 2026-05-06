@@ -1,8 +1,6 @@
 # Arrebite
 Pequeno programa que impede o notebook de suspender ou desligar a tela automaticamente. Com interface gráfica simples e menu para terminal. Ideal para apresentações, downloads longos ou monitoramento noturno.
 
-Aqui está um `README.md` completo para o projeto **Arrebite**, incluindo descrição, requisitos, instalação e tutorial de uso (tanto para versão terminal quanto para a interface gráfica).
-
 ---
 
 ```markdown
@@ -130,6 +128,6 @@ Distribuído sob a licença **MIT**. Consulte o arquivo `LICENSE` para mais info
 
 ## 🧠 Autor
 
-Criado por [Seu Nome] – [@lucasbombev](https://github.com/lucasbombev)  
+Criado por [Lucas] – [@lucasbombev](https://github.com/lucasbombev)  
 ⚡ *Arrebite – porque notebooks também precisam de um "café" para ficar acordados.*
 ```
