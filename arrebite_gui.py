@@ -281,8 +281,6 @@ def restore_defaults() -> tuple:
 
 
 class ToolTip:
-    """Tooltip simples que aparece ao passar o mouse sobre um widget."""
-
     def __init__(self, widget, text):
         self.widget = widget
         self.text = text
@@ -294,7 +292,7 @@ class ToolTip:
         if self.tip_window or not self.text:
             return
         x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
         self.tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
@@ -302,10 +300,12 @@ class ToolTip:
             tw,
             text=self.text,
             justify=tk.LEFT,
-            background="#ffffe0",
-            relief=tk.SOLID,
-            borderwidth=1,
-            font=("sans-serif", 9),
+            background="#1f2937",
+            foreground="#f9fafb",
+            relief=tk.FLAT,
+            padx=10,
+            pady=6,
+            font=("Segoe UI", 9),
         )
         label.pack()
 
@@ -318,10 +318,10 @@ class ToolTip:
 class ArrebiteGUI:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Arrebite - Mantenha seu notebook acordado")
-        self.root.geometry("520x400")
+        self.root.title("Arrebite")
+        self.root.geometry("480x480")
         self.root.resizable(False, False)
-        self.root.configure(bg="#f0f0f0")
+        self.root.configure(bg="#f8f9fa")
 
         self.center_window()
 
@@ -333,8 +333,8 @@ class ArrebiteGUI:
 
     def center_window(self):
         self.root.update_idletasks()
-        w = 520
-        h = 400
+        w = 480
+        h = 480
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
         x = (sw - w) // 2
@@ -344,59 +344,68 @@ class ArrebiteGUI:
     def _build_ui(self):
         root = self.root
 
-        # ---- Frame principal ----
-        main = tk.Frame(root, bg="#f0f0f0", padx=20, pady=15)
-        main.pack(fill=tk.BOTH, expand=True)
+        container = tk.Frame(root, bg="#f8f9fa", padx=32, pady=28)
+        container.pack(fill=tk.BOTH, expand=True)
 
-        # ---- Título decorativo ----
-        title_frame = tk.Frame(main, bg="#f0f0f0")
-        title_frame.pack(fill=tk.X, pady=(0, 10))
         tk.Label(
-            title_frame,
-            text="⚡ Arrebite",
-            font=("sans-serif", 18, "bold"),
-            fg="#2c3e50",
-            bg="#f0f0f0",
-        ).pack(side=tk.LEFT)
+            container,
+            text="Arrebite",
+            font=("Segoe UI", 22, "bold"),
+            fg="#111827",
+            bg="#f8f9fa",
+            anchor=tk.W,
+        ).pack(fill=tk.X)
+
         tk.Label(
-            title_frame,
-            text="mantenha seu notebook acordado",
-            font=("sans-serif", 9),
-            fg="#7f8c8d",
-            bg="#f0f0f0",
-        ).pack(side=tk.LEFT, padx=(8, 0), pady=(6, 0))
+            container,
+            text="Mantenha seu notebook acordado",
+            font=("Segoe UI", 10),
+            fg="#6b7280",
+            bg="#f8f9fa",
+            anchor=tk.W,
+        ).pack(fill=tk.X, pady=(0, 24))
 
-        # ---- Indicador LED + Status ----
-        status_frame = tk.Frame(main, bg="#f0f0f0")
-        status_frame.pack(fill=tk.X, pady=(0, 12))
+        status_card = tk.Frame(
+            container,
+            bg="#ffffff",
+            highlightbackground="#e5e7eb",
+            highlightthickness=1,
+            padx=20,
+            pady=18,
+        )
+        status_card.pack(fill=tk.X, pady=(0, 20))
 
-        self.led = tk.Canvas(status_frame, width=16, height=16, bg="#f0f0f0", highlightthickness=0)
-        self.led.pack(side=tk.LEFT, padx=(0, 6))
-        self.led_dot = self.led.create_oval(2, 2, 14, 14, fill="#e74c3c", outline="")
+        status_row = tk.Frame(status_card, bg="#ffffff")
+        status_row.pack(fill=tk.X)
+
+        self.led = tk.Canvas(
+            status_row, width=14, height=14, bg="#ffffff", highlightthickness=0
+        )
+        self.led.pack(side=tk.LEFT, padx=(0, 10))
+        self.led_dot = self.led.create_oval(1, 1, 13, 13, fill="#ef4444", outline="")
 
         self.status_label = tk.Label(
-            status_frame,
-            text="Modo inativo",
-            font=("sans-serif", 10, "italic"),
-            fg="#7f8c8d",
-            bg="#f0f0f0",
+            status_row,
+            text="Inativo",
+            font=("Segoe UI", 12),
+            fg="#6b7280",
+            bg="#ffffff",
         )
         self.status_label.pack(side=tk.LEFT)
 
-        # ---- Botões principais ----
-        btn_frame = tk.Frame(main, bg="#f0f0f0")
-        btn_frame.pack(fill=tk.X, pady=(0, 12))
+        btn_frame = tk.Frame(container, bg="#f8f9fa")
+        btn_frame.pack(fill=tk.X, pady=(0, 18))
 
         self.btn_ativar = tk.Button(
             btn_frame,
-            text="🛌 ATIVAR MODO ANTI-SONO",
-            font=("sans-serif", 11, "bold"),
-            bg="#27ae60",
+            text="Ativar modo anti-sono",
+            font=("Segoe UI", 11, "bold"),
+            bg="#4f46e5",
             fg="white",
-            activebackground="#2ecc71",
+            activebackground="#4338ca",
             activeforeground="white",
             relief=tk.FLAT,
-            padx=10,
+            padx=16,
             pady=12,
             cursor="hand2",
             border=0,
@@ -407,14 +416,14 @@ class ArrebiteGUI:
 
         self.btn_restaurar = tk.Button(
             btn_frame,
-            text="↩ RESTAURAR PADRÕES",
-            font=("sans-serif", 11, "bold"),
-            bg="#e67e22",
+            text="Restaurar padrões",
+            font=("Segoe UI", 11, "bold"),
+            bg="#f59e0b",
             fg="white",
-            activebackground="#f39c12",
+            activebackground="#d97706",
             activeforeground="white",
             relief=tk.FLAT,
-            padx=10,
+            padx=16,
             pady=12,
             cursor="hand2",
             border=0,
@@ -423,51 +432,53 @@ class ArrebiteGUI:
         self.btn_restaurar.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 0))
         ToolTip(self.btn_restaurar, "Restaura as configurações originais de energia")
 
-        # ---- Botão Sair ----
-        sair_frame = tk.Frame(main, bg="#f0f0f0")
-        sair_frame.pack(fill=tk.X, pady=(0, 10))
+        sep = tk.Frame(container, bg="#e5e7eb", height=1)
+        sep.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(
+            container,
+            text="Log",
+            font=("Segoe UI", 10, "bold"),
+            fg="#374151",
+            bg="#f8f9fa",
+            anchor=tk.W,
+        ).pack(fill=tk.X, pady=(0, 8))
+
+        self.log_area = scrolledtext.ScrolledText(
+            container,
+            height=8,
+            font=("Consolas", 10),
+            bg="#1f2937",
+            fg="#d1d5db",
+            insertbackground="#f9fafb",
+            relief=tk.FLAT,
+            borderwidth=0,
+            padx=12,
+            pady=12,
+            state=tk.DISABLED,
+        )
+        self.log_area.pack(fill=tk.BOTH, expand=True)
+
+        exit_frame = tk.Frame(container, bg="#f8f9fa")
+        exit_frame.pack(fill=tk.X, pady=(14, 0))
 
         self.btn_sair = tk.Button(
-            sair_frame,
+            exit_frame,
             text="Sair",
-            font=("sans-serif", 10),
-            bg="#e74c3c",
-            fg="white",
-            activebackground="#c0392b",
-            activeforeground="white",
+            font=("Segoe UI", 10),
+            bg="#f3f4f6",
+            fg="#374151",
+            activebackground="#e5e7eb",
+            activeforeground="#111827",
             relief=tk.FLAT,
-            padx=20,
-            pady=6,
+            padx=24,
+            pady=8,
             cursor="hand2",
             border=0,
             command=self.on_close,
         )
-        self.btn_sair.pack()
-        ToolTip(self.btn_sair, "Fecha o programa (pergunta antes de restaurar)")
-
-        # ---- Área de log ----
-        log_label = tk.Label(
-            main,
-            text="📋 Log de eventos:",
-            font=("sans-serif", 9, "bold"),
-            fg="#2c3e50",
-            bg="#f0f0f0",
-            anchor=tk.W,
-        )
-        log_label.pack(fill=tk.X)
-
-        self.log_area = scrolledtext.ScrolledText(
-            main,
-            height=7,
-            font=("Consolas", 9),
-            bg="#1a1a2e",
-            fg="#00ff88",
-            insertbackground="white",
-            relief=tk.SUNKEN,
-            borderwidth=2,
-            state=tk.DISABLED,
-        )
-        self.log_area.pack(fill=tk.BOTH, expand=True)
+        self.btn_sair.pack(side=tk.RIGHT)
+        ToolTip(self.btn_sair, "Fecha o programa")
 
         self.log("Programa iniciado. Pronto para agir!")
 
@@ -480,15 +491,15 @@ class ArrebiteGUI:
 
     def _update_buttons(self):
         if self.modo_ativo:
-            self.btn_ativar.config(state=tk.DISABLED, bg="#95a5a6")
-            self.btn_restaurar.config(state=tk.NORMAL, bg="#e67e22")
-            self.led.itemconfig(self.led_dot, fill="#2ecc71")
-            self.status_label.config(text="Modo ativo  💪", fg="#27ae60")
+            self.btn_ativar.config(state=tk.DISABLED, bg="#9ca3af")
+            self.btn_restaurar.config(state=tk.NORMAL, bg="#f59e0b")
+            self.led.itemconfig(self.led_dot, fill="#22c55e")
+            self.status_label.config(text="Ativo", fg="#16a34a")
         else:
-            self.btn_ativar.config(state=tk.NORMAL, bg="#27ae60")
-            self.btn_restaurar.config(state=tk.DISABLED, bg="#95a5a6")
-            self.led.itemconfig(self.led_dot, fill="#e74c3c")
-            self.status_label.config(text="Modo inativo", fg="#7f8c8d")
+            self.btn_ativar.config(state=tk.NORMAL, bg="#4f46e5")
+            self.btn_restaurar.config(state=tk.DISABLED, bg="#9ca3af")
+            self.led.itemconfig(self.led_dot, fill="#ef4444")
+            self.status_label.config(text="Inativo", fg="#6b7280")
 
     def on_ativar(self):
         success, msgs = activate_mode()
