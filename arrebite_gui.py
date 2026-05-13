@@ -23,6 +23,54 @@ from datetime import datetime
 # NÚCLEO - LÓGICA ORIGINAL (adaptada para não usar print)
 # =============================================================================
 
+THEMES = {
+    "light": {
+        "bg": "#f8f9fa",
+        "card_bg": "#ffffff",
+        "card_border": "#e5e7eb",
+        "title_fg": "#111827",
+        "subtitle_fg": "#6b7280",
+        "log_bg": "#1f2937",
+        "log_fg": "#d1d5db",
+        "log_insert": "#f9fafb",
+        "log_header_fg": "#374151",
+        "sep": "#e5e7eb",
+        "btn_ativar_bg": "#4f46e5",
+        "btn_ativar_active": "#4338ca",
+        "btn_sair_bg": "#f3f4f6",
+        "btn_sair_fg": "#374151",
+        "btn_sair_active_bg": "#e5e7eb",
+        "btn_sair_active_fg": "#111827",
+        "led_off": "#ef4444",
+        "led_on": "#22c55e",
+        "status_inactive_fg": "#6b7280",
+        "status_active_fg": "#16a34a",
+    },
+    "dark": {
+        "bg": "#1e1e2e",
+        "card_bg": "#2d2d44",
+        "card_border": "#3d3d5c",
+        "title_fg": "#e0e0e0",
+        "subtitle_fg": "#a0a0b0",
+        "log_bg": "#0d1117",
+        "log_fg": "#c9d1d9",
+        "log_insert": "#c9d1d9",
+        "log_header_fg": "#c0c0d0",
+        "sep": "#3d3d5c",
+        "btn_ativar_bg": "#6366f1",
+        "btn_ativar_active": "#5558e6",
+        "btn_sair_bg": "#374151",
+        "btn_sair_fg": "#d1d5db",
+        "btn_sair_active_bg": "#4b5563",
+        "btn_sair_active_fg": "#f9fafb",
+        "led_off": "#ef4444",
+        "led_on": "#22c55e",
+        "status_inactive_fg": "#a0a0a0",
+        "status_active_fg": "#4ade80",
+    },
+}
+
+
 @dataclass
 class SavedSettings:
     settings: Dict[str, Optional[str]] = field(default_factory=dict)
@@ -326,6 +374,9 @@ class ArrebiteGUI:
         self.center_window()
 
         self.modo_ativo = False
+        self.log_visible = False
+        self.dark_mode = False
+        self.current_theme = THEMES["light"]
         self._build_ui()
         self._update_buttons()
 
@@ -343,66 +394,87 @@ class ArrebiteGUI:
 
     def _build_ui(self):
         root = self.root
+        T = self.current_theme
 
-        container = tk.Frame(root, bg="#f8f9fa", padx=32, pady=28)
-        container.pack(fill=tk.BOTH, expand=True)
+        self._container = tk.Frame(root, bg=T["bg"], padx=32, pady=28)
+        self._container.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(
-            container,
+        self._header_frame = tk.Frame(self._container, bg=T["bg"])
+        self._header_frame.pack(fill=tk.X)
+
+        self._title_label = tk.Label(
+            self._header_frame,
             text="Arrebite",
             font=("Segoe UI", 22, "bold"),
-            fg="#111827",
-            bg="#f8f9fa",
+            fg=T["title_fg"],
+            bg=T["bg"],
             anchor=tk.W,
-        ).pack(fill=tk.X)
+        )
+        self._title_label.pack(side=tk.LEFT)
 
-        tk.Label(
-            container,
+        self.btn_toggle_theme = tk.Button(
+            self._header_frame,
+            text="\u263e",
+            font=("Segoe UI", 16),
+            bg=T["bg"],
+            fg=T["subtitle_fg"],
+            relief=tk.FLAT,
+            padx=4,
+            pady=0,
+            cursor="hand2",
+            border=0,
+            command=self._toggle_theme,
+        )
+        self.btn_toggle_theme.pack(side=tk.RIGHT)
+
+        self._subtitle_label = tk.Label(
+            self._container,
             text="Mantenha seu notebook acordado",
             font=("Segoe UI", 10),
-            fg="#6b7280",
-            bg="#f8f9fa",
+            fg=T["subtitle_fg"],
+            bg=T["bg"],
             anchor=tk.W,
-        ).pack(fill=tk.X, pady=(0, 24))
+        )
+        self._subtitle_label.pack(fill=tk.X, pady=(0, 24))
 
-        status_card = tk.Frame(
-            container,
-            bg="#ffffff",
-            highlightbackground="#e5e7eb",
+        self._status_card = tk.Frame(
+            self._container,
+            bg=T["card_bg"],
+            highlightbackground=T["card_border"],
             highlightthickness=1,
             padx=20,
             pady=18,
         )
-        status_card.pack(fill=tk.X, pady=(0, 20))
+        self._status_card.pack(fill=tk.X, pady=(0, 20))
 
-        status_row = tk.Frame(status_card, bg="#ffffff")
-        status_row.pack(fill=tk.X)
+        self._status_row = tk.Frame(self._status_card, bg=T["card_bg"])
+        self._status_row.pack(fill=tk.X)
 
         self.led = tk.Canvas(
-            status_row, width=14, height=14, bg="#ffffff", highlightthickness=0
+            self._status_row, width=14, height=14, bg=T["card_bg"], highlightthickness=0
         )
         self.led.pack(side=tk.LEFT, padx=(0, 10))
-        self.led_dot = self.led.create_oval(1, 1, 13, 13, fill="#ef4444", outline="")
+        self.led_dot = self.led.create_oval(1, 1, 13, 13, fill=T["led_off"], outline="")
 
         self.status_label = tk.Label(
-            status_row,
+            self._status_row,
             text="Inativo",
             font=("Segoe UI", 12),
-            fg="#6b7280",
-            bg="#ffffff",
+            fg=T["status_inactive_fg"],
+            bg=T["card_bg"],
         )
         self.status_label.pack(side=tk.LEFT)
 
-        btn_frame = tk.Frame(container, bg="#f8f9fa")
-        btn_frame.pack(fill=tk.X, pady=(0, 18))
+        self._btn_frame = tk.Frame(self._container, bg=T["bg"])
+        self._btn_frame.pack(fill=tk.X, pady=(0, 18))
 
         self.btn_ativar = tk.Button(
-            btn_frame,
+            self._btn_frame,
             text="Ativar modo anti-sono",
             font=("Segoe UI", 11, "bold"),
-            bg="#4f46e5",
+            bg=T["btn_ativar_bg"],
             fg="white",
-            activebackground="#4338ca",
+            activebackground=T["btn_ativar_active"],
             activeforeground="white",
             relief=tk.FLAT,
             padx=16,
@@ -415,7 +487,7 @@ class ArrebiteGUI:
         ToolTip(self.btn_ativar, "Desabilita suspensão automática e bloqueio de tela")
 
         self.btn_restaurar = tk.Button(
-            btn_frame,
+            self._btn_frame,
             text="Restaurar padrões",
             font=("Segoe UI", 11, "bold"),
             bg="#f59e0b",
@@ -432,44 +504,61 @@ class ArrebiteGUI:
         self.btn_restaurar.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 0))
         ToolTip(self.btn_restaurar, "Restaura as configurações originais de energia")
 
-        sep = tk.Frame(container, bg="#e5e7eb", height=1)
-        sep.pack(fill=tk.X, pady=(0, 10))
+        self._sep = tk.Frame(self._container, bg=T["sep"], height=1)
+        self._sep.pack(fill=tk.X, pady=(0, 10))
+
+        self._log_header = tk.Frame(self._container, bg=T["bg"])
+        self._log_header.pack(fill=tk.X, pady=(0, 8))
 
         tk.Label(
-            container,
+            self._log_header,
             text="Log",
             font=("Segoe UI", 10, "bold"),
-            fg="#374151",
-            bg="#f8f9fa",
+            fg=T["log_header_fg"],
+            bg=T["bg"],
             anchor=tk.W,
-        ).pack(fill=tk.X, pady=(0, 8))
+        ).pack(side=tk.LEFT)
+
+        self.btn_toggle_log = tk.Button(
+            self._log_header,
+            text="\u25b6",
+            font=("Segoe UI", 8),
+            bg=T["bg"],
+            fg=T["log_header_fg"],
+            relief=tk.FLAT,
+            padx=4,
+            pady=0,
+            cursor="hand2",
+            border=0,
+            command=self._toggle_log,
+        )
+        self.btn_toggle_log.pack(side=tk.RIGHT)
 
         self.log_area = scrolledtext.ScrolledText(
-            container,
+            self._container,
             height=8,
             font=("Consolas", 10),
-            bg="#1f2937",
-            fg="#d1d5db",
-            insertbackground="#f9fafb",
+            bg=T["log_bg"],
+            fg=T["log_fg"],
+            insertbackground=T["log_insert"],
             relief=tk.FLAT,
             borderwidth=0,
             padx=12,
             pady=12,
             state=tk.DISABLED,
         )
-        self.log_area.pack(fill=tk.BOTH, expand=True)
 
-        exit_frame = tk.Frame(container, bg="#f8f9fa")
-        exit_frame.pack(fill=tk.X, pady=(14, 0))
+        self._exit_frame = tk.Frame(self._container, bg=T["bg"])
+        self._exit_frame.pack(fill=tk.X, pady=(14, 0))
 
         self.btn_sair = tk.Button(
-            exit_frame,
+            self._exit_frame,
             text="Sair",
             font=("Segoe UI", 10),
-            bg="#f3f4f6",
-            fg="#374151",
-            activebackground="#e5e7eb",
-            activeforeground="#111827",
+            bg=T["btn_sair_bg"],
+            fg=T["btn_sair_fg"],
+            activebackground=T["btn_sair_active_bg"],
+            activeforeground=T["btn_sair_active_fg"],
             relief=tk.FLAT,
             padx=24,
             pady=8,
@@ -490,16 +579,57 @@ class ArrebiteGUI:
         self.log_area.config(state=tk.DISABLED)
 
     def _update_buttons(self):
+        T = self.current_theme
         if self.modo_ativo:
             self.btn_ativar.config(state=tk.DISABLED, bg="#9ca3af")
             self.btn_restaurar.config(state=tk.NORMAL, bg="#f59e0b")
-            self.led.itemconfig(self.led_dot, fill="#22c55e")
-            self.status_label.config(text="Ativo", fg="#16a34a")
+            self.led.itemconfig(self.led_dot, fill=T["led_on"])
+            self.status_label.config(text="Ativo", fg=T["status_active_fg"])
         else:
-            self.btn_ativar.config(state=tk.NORMAL, bg="#4f46e5")
+            self.btn_ativar.config(state=tk.NORMAL, bg=T["btn_ativar_bg"])
             self.btn_restaurar.config(state=tk.DISABLED, bg="#9ca3af")
-            self.led.itemconfig(self.led_dot, fill="#ef4444")
-            self.status_label.config(text="Inativo", fg="#6b7280")
+            self.led.itemconfig(self.led_dot, fill=T["led_off"])
+            self.status_label.config(text="Inativo", fg=T["status_inactive_fg"])
+
+    def _toggle_log(self):
+        if self.log_visible:
+            self.log_area.pack_forget()
+            self.btn_toggle_log.config(text="\u25b6")
+        else:
+            self.log_area.pack(fill=tk.BOTH, expand=True, before=self._exit_frame)
+            self.btn_toggle_log.config(text="\u25bc")
+        self.log_visible = not self.log_visible
+
+    def _toggle_theme(self):
+        self.dark_mode = not self.dark_mode
+        self.current_theme = THEMES["dark" if self.dark_mode else "light"]
+        self._apply_theme()
+
+    def _apply_theme(self):
+        T = self.current_theme
+        self.root.configure(bg=T["bg"])
+        for w in [self._container, self._header_frame,
+                  self._btn_frame, self._log_header, self._exit_frame]:
+            w.configure(bg=T["bg"])
+        self._title_label.configure(bg=T["bg"], fg=T["title_fg"])
+        self._subtitle_label.configure(bg=T["bg"], fg=T["subtitle_fg"])
+        self._status_card.configure(bg=T["card_bg"], highlightbackground=T["card_border"])
+        self._status_row.configure(bg=T["card_bg"])
+        self.led.configure(bg=T["card_bg"])
+        self.status_label.configure(bg=T["card_bg"])
+        self._sep.configure(bg=T["sep"])
+        self.log_area.configure(bg=T["log_bg"], fg=T["log_fg"], insertbackground=T["log_insert"])
+        self.btn_sair.configure(
+            bg=T["btn_sair_bg"], fg=T["btn_sair_fg"],
+            activebackground=T["btn_sair_active_bg"],
+            activeforeground=T["btn_sair_active_fg"],
+        )
+        self.btn_toggle_theme.configure(
+            text="\u2600" if self.dark_mode else "\u263e",
+            bg=T["bg"], fg=T["subtitle_fg"],
+        )
+        self.btn_toggle_log.configure(bg=T["bg"], fg=T["log_header_fg"])
+        self._update_buttons()
 
     def on_ativar(self):
         success, msgs = activate_mode()

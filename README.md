@@ -2,7 +2,9 @@
 Pequeno programa que impede o notebook de suspender ou desligar a tela automaticamente. Com interface gráfica simples e menu para terminal. Ideal para apresentações, downloads longos ou monitoramento noturno.
 
 ---
-<img width="517" height="425" alt="image" src="https://github.com/user-attachments/assets/09d36401-28cf-4c4b-ba0c-a91479fc1a5d" />
+<img width="517" height="425" alt="image" src="/ligth_mode.png" />
+<img width="517" height="425" alt="image" src="/dark_mode.png" />
+
 
 ---
 
